@@ -53,7 +53,7 @@ The project includes a **3-page Power BI dashboard** with:
 - **Risk Segmentation** — Income vs Loan scatter (color = PD), Grade × Age heatmap
 - **Stress Testing** — What-If parameter to scale PD by 1.0×–2.0× and see impact on Expected Loss
 
-> 📸 *Add your Power BI screenshot here after exporting from Power BI Desktop.*
+![Power BI Credit Risk Dashboard](powerbi_dashboard.png)
 
 ---
 
