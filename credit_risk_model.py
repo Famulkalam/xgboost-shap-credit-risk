@@ -104,10 +104,11 @@ def train_credit_model():
     # Waterfall Plot for top 3 highest-risk instances
     top_risk_indices = np.argsort(y_test_pred_prob)[-3:]
     for i, idx in enumerate(top_risk_indices):
-        plt.figure(figsize=(10, 6))
+        fig = plt.figure(figsize=(12, 7))
         # Ensure we use the correct shap values for the observation
         shap.plots.waterfall(shap_values[idx], show=False)
-        plt.savefig(f'shap_waterfall_loan_{idx}.png')
+        plt.subplots_adjust(left=0.35)
+        plt.savefig(f'shap_waterfall_loan_{idx}.png', bbox_inches='tight', dpi=150)
         plt.close()
 
     # --- 8. Save Predictions with Risk Bands ---
