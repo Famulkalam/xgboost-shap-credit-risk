@@ -1,0 +1,22 @@
+# Environments & Secrets
+venv/
+env/
+.env
+
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Database / Docker files
+*.mdf
+*.ldf
+
+# IDE
+.vscode/
+.idea/
