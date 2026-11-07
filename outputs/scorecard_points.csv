@@ -1,0 +1,61 @@
+variable,bin,woe,points
+person_age,"(-inf, 23.0]",-0.1247,46
+person_age,"(23.0, 24.0]",0.0391,48
+person_age,"(24.0, 26.0]",-0.0036,48
+person_age,"(26.0, 28.0]",0.0424,48
+person_age,"(28.0, 33.0]",0.1165,49
+person_age,"(33.0, inf]",0.036,48
+person_income,"(-inf, 33000.0]",-1.0739,20
+person_income,"(33000.0, 44000.0]",-0.2644,41
+person_income,"(44000.0, 55000.0]",0.1302,51
+person_income,"(55000.0, 70000.0]",0.3345,57
+person_income,"(70000.0, 92500.0]",0.5772,63
+person_income,"(92500.0, inf]",1.0606,76
+person_emp_length,"(-inf, 1.0]",-0.3104,46
+person_emp_length,"(1.0, 3.0]",-0.0967,47
+person_emp_length,"(3.0, 4.0]",-0.0842,47
+person_emp_length,"(4.0, 6.0]",0.1778,49
+person_emp_length,"(6.0, 8.0]",0.2419,49
+person_emp_length,"(8.0, inf]",0.3518,50
+loan_amnt,"(-inf, 4000.0]",0.0535,49
+loan_amnt,"(10500.0, 15000.0]",-0.0865,46
+loan_amnt,"(15000.0, inf]",-0.5663,38
+loan_amnt,"(4000.0, 6000.0]",0.2854,53
+loan_amnt,"(6000.0, 8000.0]",0.2852,53
+loan_amnt,"(8000.0, 10500.0]",0.1288,50
+loan_int_rate,"(-inf, 7.49]",1.0699,47
+loan_int_rate,"(10.99, 12.67]",0.2487,48
+loan_int_rate,"(12.67, 14.27]",-0.098,48
+loan_int_rate,"(14.27, inf]",-1.463,49
+loan_int_rate,"(7.49, 9.38]",0.7391,47
+loan_int_rate,"(9.38, 10.99]",0.3882,47
+loan_percent_income,"(-inf, 0.07]",0.8545,70
+loan_percent_income,"(0.07, 0.11]",0.6207,64
+loan_percent_income,"(0.11, 0.15]",0.6813,65
+loan_percent_income,"(0.15, 0.2]",0.2204,54
+loan_percent_income,"(0.2, 0.27]",0.0245,48
+loan_percent_income,"(0.27, inf]",-1.603,6
+cb_person_cred_hist_length,"(-inf, 3.0]",-0.07,47
+cb_person_cred_hist_length,"(3.0, 4.0]",-0.0283,48
+cb_person_cred_hist_length,"(4.0, 7.0]",0.1033,49
+cb_person_cred_hist_length,"(7.0, 9.0]",0.0475,48
+cb_person_cred_hist_length,"(9.0, inf]",0.0521,48
+person_home_ownership,MORTGAGE,0.664,65
+person_home_ownership,OTHER,-0.6457,31
+person_home_ownership,OWN,1.284,81
+person_home_ownership,RENT,-0.5017,35
+loan_intent,DEBTCONSOLIDATION,-0.339,34
+loan_intent,EDUCATION,0.2831,59
+loan_intent,HOMEIMPROVEMENT,-0.2622,37
+loan_intent,MEDICAL,-0.2613,37
+loan_intent,PERSONAL,0.1372,53
+loan_intent,VENTURE,0.4467,66
+loan_grade,A,0.9223,80
+loan_grade,B,0.37,61
+loan_grade,C,0.044,49
+loan_grade,D,-1.6376,-10
+loan_grade,E,-1.8556,-18
+loan_grade,F,-2.173,-29
+loan_grade,G,-4.7283,-119
+cb_person_default_on_file,N,0.214,48
+cb_person_default_on_file,Y,-0.778,49

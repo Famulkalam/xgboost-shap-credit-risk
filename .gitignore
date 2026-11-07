@@ -20,3 +20,6 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+
+# Test / tool caches
+.pytest_cache/

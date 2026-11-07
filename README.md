@@ -1,122 +1,117 @@
-# 🏦 XGBoost-SHAP Credit Risk Scorecard
+# Credit Risk PD Model: WoE Scorecard vs XGBoost with SHAP
 
-An end-to-end **Credit Risk ML Pipeline** — from raw loan data through model training, explainability, database storage, and business intelligence dashboarding.
+An end-to-end probability-of-default (PD) project on 32,581 consumer loans:
+data cleaning, a Weight-of-Evidence logistic scorecard as the benchmark, an
+XGBoost challenger explained with SHAP, validation metrics used in credit
+risk (Gini, KS, calibration, PSI), and a SQL Server and Power BI reporting
+layer with expected loss.
 
-[![Python](https://img.shields.io/badge/Python-3.10+-blue?logo=python)](https://python.org)
-[![scikit-learn](https://img.shields.io/badge/scikit--learn-1.3+-orange?logo=scikit-learn)](https://scikit-learn.org)
-[![SHAP](https://img.shields.io/badge/SHAP-Explainable_AI-green)](https://shap.readthedocs.io)
-[![SQL Server](https://img.shields.io/badge/SQL_Server-2022-red?logo=microsoftsqlserver)](https://www.microsoft.com/en-us/sql-server)
+The full validation write-up, including limitations, is in
+[MODEL_VALIDATION.md](MODEL_VALIDATION.md).
 
----
+## Results (held-out test set, 6,483 loans)
 
-## 🏗️ Architecture
+| Metric | WoE scorecard (benchmark) | XGBoost (challenger) |
+| :--- | ---: | ---: |
+| AUC | 0.869 | 0.944 |
+| Gini | 0.739 | 0.888 |
+| KS | 0.618 | 0.750 |
+| Brier score | 0.102 | 0.053 |
+| Mean PD vs observed default rate | 21.8% vs 21.9% | 21.9% vs 21.9% |
+
+- XGBoost 5-fold cross-validated AUC: 0.948 (std 0.003).
+- Without the lender-assigned variables (loan grade, interest rate),
+  XGBoost still reaches AUC 0.904.
+- **Read with care:** this public dataset is much easier to separate than a
+  real lending book and has no dates, so there is no out-of-time test. See
+  the limitations in the validation note.
+
+![ROC curves](figures/roc_curves.png)
+
+![Calibration](figures/calibration.png)
+
+## Explainability (SHAP)
+
+Global impact of each feature on the XGBoost model:
+
+![SHAP summary](figures/shap_summary.png)
+
+Explanation for the single highest-PD loan in the test set:
+
+![SHAP waterfall](figures/shap_waterfall_highest_risk.png)
+
+## Method
+
+1. **Cleaning** (`data_prep.py`): drop 165 duplicate rows and 5 applicants
+   aged over 100; set 2 impossible employment lengths to missing; impute
+   missing values with training-set medians (interest rate by loan grade),
+   keeping missing-value flags.
+2. **Split:** stratified 80/20. XGBoost early stopping uses a validation
+   split from the training data; the test set is only used for final figures.
+3. **Benchmark scorecard** (`scorecard.py`): quantile binning, WoE
+   transform, Information Value table (`outputs/information_value.csv`),
+   logistic regression, and points scaling (600 points at 50:1 odds,
+   20 points to double the odds) in `outputs/scorecard_points.csv`.
+4. **Challenger** (`credit_risk_model.py`): XGBoost with ordinal loan grade
+   and one-hot categoricals, early stopping, 5-fold CV, and a sensitivity
+   run without lender-assigned variables.
+5. **Validation** (`metrics.py`): AUC with bootstrap interval, Gini, KS,
+   Brier score, decile calibration and PSI.
+6. **Reporting:** `predictions.csv` (test-set PDs, scores and risk bands,
+   keyed by `loan_id`) loads into SQL Server; `create_views.sql` adds
+   expected loss (PD × 45% LGD × loan amount) for Power BI.
+
+## Power BI dashboard
+
+![Power BI dashboard](figures/powerbi_dashboard_v1.png)
+
+*Screenshot from the first version of the project, before the model was
+rebuilt; figures on it will differ from the table above. Measures and layout
+are documented in [power_bi_metrics.md](power_bi_metrics.md).*
+
+## Project structure
 
 ```
-┌──────────────┐     ┌───────────────────┐     ┌──────────────────┐     ┌──────────────┐
-│  Kaggle CSV  │────▶│  Python / ML      │────▶│  SQL Server      │────▶│  Power BI    │
-│  32,581 rows │     │  HistGBT + SHAP   │     │  (Docker)        │     │  Dashboard   │
-└──────────────┘     └───────────────────┘     └──────────────────┘     └──────────────┘
-     Data               Model & XAI             Storage & Views         Business Intel
+├── credit_risk_dataset.csv   # Raw Kaggle data (32,581 loans)
+├── data_prep.py              # Loading, cleaning rules, imputation, encoding
+├── eda.py                    # Exploratory analysis -> figures/
+├── scorecard.py              # WoE binning, IV, logistic scorecard, points
+├── metrics.py                # Gini, KS, PSI, calibration, bootstrap CI
+├── credit_risk_model.py      # Trains both models, validation, SHAP, outputs
+├── predictions.csv           # Test-set predictions for SQL / Power BI
+├── outputs/                  # metrics.json, IV table, points, calibration
+├── figures/                  # All plots
+├── setup_database.sql        # SQL Server tables
+├── push_to_sql.py            # Loads loans and predictions into SQL Server
+├── create_views.sql          # Reporting view with expected loss
+├── power_bi_metrics.md       # DAX measures and dashboard layout
+├── MODEL_VALIDATION.md       # Validation note and limitations
+└── tests/                    # pytest checks for cleaning, leakage, metrics
 ```
 
----
+## How to run
 
-## 📊 Model Performance Scorecard
-
-| Metric | Train | Test |
-|:---|:---:|:---:|
-| **Accuracy** | 0.9365 | 0.9323 |
-| **AUC-ROC** | 0.9793 | 0.9749 |
-| **Precision** | — | 0.9280 |
-| **Recall** | — | 0.7606 |
-
-> **Overfitting Check**: Train–Test AUC gap = **0.0044** → Model is **robust** with consistent generalization.
-
----
-
-## 🔍 Explainable AI (SHAP)
-
-### Global Feature Importance
-![SHAP Summary Plot](shap_summary_plot.png)
-
-### Individual Loan Explanation (Waterfall)
-![SHAP Waterfall — Highest Risk Loan](shap_waterfall_loan_5174.png)
-
-> Each bar shows how a single feature **pushes the prediction** toward default (red) or non-default (blue). This provides per-loan transparency for regulators and risk officers.
-
----
-
-## 📈 Power BI Dashboard
-
-The project includes a **3-page Power BI dashboard** with:
-- **Executive Overview** — Total Funded Volume, Predicted PD, Expected Loss, Risk Band distribution
-- **Risk Segmentation** — Income vs Loan scatter (color = PD), Grade × Age heatmap
-- **Stress Testing** — What-If parameter to scale PD by 1.0×–2.0× and see impact on Expected Loss
-
-![Power BI Credit Risk Dashboard](powerbi_dashboard.png)
-
----
-
-## 🗂️ Project Structure
-
-```
-├── credit_risk_dataset.csv     # Raw Kaggle dataset (32,581 loan records)
-├── eda.py                      # Exploratory Data Analysis + plots
-├── credit_risk_model.py        # HistGradientBoosting training + SHAP
-├── push_to_sql.py              # Automated Python → SQL Server pipeline
-├── setup_database.sql          # SQL Server schema (Loans + LoanPredictions)
-├── update_predictions.sql      # Expected Loss calc + Power BI view
-├── power_bi_metrics.md         # DAX measures & dashboard layout guide
-├── predictions.csv             # Model output with risk bands
-├── requirements.txt            # Python dependencies
-├── .env.example                # Template for database credentials
-└── *.png                       # EDA plots + SHAP visualizations
-```
-
----
-
-## 🚀 Quick Start
-
-### 1. Clone & Install
 ```bash
 git clone https://github.com/Famulkalam/xgboost-shap-credit-risk.git
 cd xgboost-shap-credit-risk
 pip install -r requirements.txt
+
+python eda.py                 # plots in figures/
+python credit_risk_model.py   # models, metrics and predictions (about 30 seconds)
+pytest -q                     # 9 tests
 ```
 
-### 2. Run EDA
-```bash
-python eda.py
-```
-Generates `default_distribution.png`, `key_features_boxplots.png`, and `correlation_heatmap.png`.
+Optional SQL step: run `setup_database.sql`, copy `.env.example` to `.env`
+with your SQL Server details, run `python push_to_sql.py`, then run
+`create_views.sql` and connect Power BI to `dbo.vw_LoanRiskSummary`.
 
-### 3. Train Model & Generate SHAP
-```bash
-python credit_risk_model.py
-```
-Outputs `predictions.csv` and all SHAP plots.
+## Data
 
-### 4. Push to SQL Server (Optional)
-```bash
-# First, copy .env.example to .env and fill in your credentials
-cp .env.example .env
-# Edit .env with your SQL Server password
-python push_to_sql.py
-```
+[Credit Risk Dataset](https://www.kaggle.com/datasets/laotse/credit-risk-dataset)
+on Kaggle. The file is included here for reproducibility; check the Kaggle
+page for its terms before reusing it elsewhere.
 
-### 5. Connect Power BI
-Open Power BI Desktop → **Get Data → SQL Server** → connect to your Docker instance → import `dbo.vw_LoanRiskSummary`.
+## Author
 
----
-
-## 🔐 Security
-
-- Database credentials are loaded from environment variables (`.env` file)
-- `.env` is excluded from version control via `.gitignore`
-- See `.env.example` for the required configuration template
-
----
-
-## 📝 License
-
-This project is for educational and portfolio purposes.
+Famul Kalam, MSc Business Analytics, University of Edinburgh.
+[LinkedIn](https://www.linkedin.com/in/famulkalam)

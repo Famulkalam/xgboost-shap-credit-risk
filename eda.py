@@ -1,74 +1,72 @@
-import pandas as pd
-import numpy as np
+"""Exploratory data analysis on the cleaned dataset.
+
+Run:  python eda.py   (writes plots to figures/)
+"""
+
+import os
+
+import matplotlib
+
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import numpy as np
 import seaborn as sns
 
-# Config
-DATA_PATH = "credit_risk_dataset.csv"  # Place your Kaggle CSV here
+from data_prep import TARGET, clean, load_raw
 
-def run_eda(path):
-    print("--- 1. Loading Dataset ---")
-    try:
-        df = pd.read_csv(path)
-    except FileNotFoundError:
-        print(f"Error: {path} not found. Please ensure the Kaggle dataset is in the same directory.")
-        return
+FIG_DIR = "figures"
 
-    # --- 2. Basic Info ---
-    print("\n--- 2. Dataset Overview ---")
-    print(f"Shape: {df.shape}")
-    print("\nData Types:")
-    print(df.dtypes)
-    print("\nMissing Values (%):")
-    print(df.isnull().sum() / len(df) * 100)
 
-    # --- 3. Summary Statistics ---
-    print("\n--- 3. Numerical Summary Statistics ---")
-    print(df.describe())
+def run_eda():
+    os.makedirs(FIG_DIR, exist_ok=True)
+    raw = load_raw()
 
-    # --- 4. Default Analysis ---
-    print("\n--- 4. Target Variable (loan_status) Distribution ---")
-    default_counts = df['loan_status'].value_counts(normalize=True) * 100
-    print(f"Non-Default (0): {default_counts[0]:.2f}%")
-    print(f"Default (1): {default_counts[1]:.2f}%")
+    print("--- Raw data ---")
+    print(f"Shape: {raw.shape}")
+    print("Missing values (%):")
+    print((raw.isna().mean() * 100).round(2)[raw.isna().any()])
+    print("Ranges that need cleaning:")
+    print(raw[["person_age", "person_emp_length", "person_income"]].describe().loc[["min", "max"]])
 
-    # --- 5. Correlations ---
-    print("\n--- 5. Correlation Analysis ---")
-    # Mapping categorical if needed for correlation (simple numeric approach)
-    numeric_df = df.select_dtypes(include=[np.number])
-    corr_matrix = numeric_df.corr()
-    print("Top Correlations with loan_status:")
-    print(corr_matrix['loan_status'].sort_values(ascending=False))
+    df, log = clean(raw)
+    print("\n--- Cleaning log ---")
+    for k, v in log.items():
+        print(f"{k}: {v}")
 
-    # --- 6. Plotting ---
-    print("\n--- 6. Generating Plots ---")
+    print("\n--- Default rate by loan grade ---")
+    print(df.groupby("loan_grade")[TARGET].agg(["mean", "size"]).round(3))
+
     sns.set_theme(style="whitegrid")
 
-    # A. Histogram of Loan Status
     plt.figure(figsize=(6, 4))
-    sns.countplot(x='loan_status', data=df, palette='viridis')
-    plt.title('Distribution of Loan Defaults (0=Good, 1=Bad)')
-    plt.savefig('default_distribution.png')
-    plt.close()
-
-    # B. Box Plots of Key Features split by Default
-    features_to_plot = ['person_age', 'person_income', 'loan_percent_income']
-    fig, axes = plt.subplots(1, 3, figsize=(18, 5))
-    for i, col in enumerate(features_to_plot):
-        sns.boxplot(x='loan_status', y=col, data=df, ax=axes[i], palette='magma')
-        axes[i].set_title(f'{col} vs Loan Status')
+    ax = sns.countplot(x=TARGET, data=df, color="#4C72B0")
+    ax.set_xticks([0, 1], ["Repaid (0)", "Defaulted (1)"])
+    plt.title(f"Default rate {df[TARGET].mean():.1%} (n = {len(df):,})")
     plt.tight_layout()
-    plt.savefig('key_features_boxplots.png')
+    plt.savefig(f"{FIG_DIR}/default_distribution.png", dpi=150)
     plt.close()
 
-    # C. Correlation Heatmap
-    plt.figure(figsize=(10, 8))
-    sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', fmt=".2f")
-    plt.title('Feature Correlation Heatmap')
-    plt.savefig('correlation_heatmap.png')
+    features = ["person_income", "loan_percent_income", "loan_int_rate"]
+    fig, axes = plt.subplots(1, 3, figsize=(16, 4.5))
+    for ax, col in zip(axes, features):
+        sns.boxplot(x=TARGET, y=col, data=df, ax=ax, color="#DD8452", showfliers=False)
+        ax.set_title(f"{col} by loan status")
+        if col == "person_income":
+            ax.set_yscale("log")
+    plt.tight_layout()
+    plt.savefig(f"{FIG_DIR}/key_features_boxplots.png", dpi=150)
     plt.close()
 
-    print("EDA Complete! Plots saved as 'default_distribution.png', 'key_features_boxplots.png', and 'correlation_heatmap.png'.")
+    corr = df.select_dtypes(include=[np.number]).drop(columns="loan_id").corr()
+    plt.figure(figsize=(9, 7))
+    sns.heatmap(corr, annot=True, cmap="coolwarm", fmt=".2f", vmin=-1, vmax=1)
+    plt.title("Correlation of numeric variables (cleaned data)")
+    plt.tight_layout()
+    plt.savefig(f"{FIG_DIR}/correlation_heatmap.png", dpi=150)
+    plt.close()
+
+    print(f"\nPlots saved to {FIG_DIR}/")
+
 
 if __name__ == "__main__":
-    run_eda(DATA_PATH)
+    run_eda()

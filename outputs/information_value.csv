@@ -1,0 +1,12 @@
+variable,information_value,strength
+loan_grade,0.8692029415285273,very strong (check for leakage)
+loan_percent_income,0.7795564656820281,very strong (check for leakage)
+loan_int_rate,0.7116759347317319,very strong (check for leakage)
+person_income,0.45871961449118825,strong
+person_home_ownership,0.3815227856055616,strong
+cb_person_default_on_file,0.1643159270895837,medium
+loan_intent,0.09040441765008633,weak
+loan_amnt,0.08442633498964575,weak
+person_emp_length,0.05414600940139448,weak
+person_age,0.007354827231107214,not predictive
+cb_person_cred_hist_length,0.004455206017339691,not predictive

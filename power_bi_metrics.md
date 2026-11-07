@@ -1,59 +1,54 @@
-# Power BI Risk Dashboard Design Guide
+# Power BI dashboard: measures and layout
 
-This guide defines the KPIs and DAX measures for the "XGBoost-SHAP Credit Risk Dashboard".
+The dashboard connects to one table, the SQL view `dbo.vw_LoanRiskSummary`
+(see `create_views.sql`). In Power BI the table is referred to below as
+`Risk`. It contains test-set loans only, because those are the loans the
+model did not see during training.
 
-## 1. Core KPIs (12-15 Metrics)
+## Core measures (DAX)
 
-| KPI Name | Description | DAX Formula Idea |
-| :--- | :--- | :--- |
-| **Total Loan Portfolio** | Total number of loans in the dataset. | `Total Loans = COUNT(Loans[loan_id])` |
-| **Total Funded Volume** | Sum of all loan amounts. | `Total Funded = SUM(Loans[loan_amnt])` |
-| **Average Loan Amount** | Mean value of loans. | `Avg Loan = AVERAGE(Loans[loan_amnt])` |
-| **Actual Default Rate** | % of loans that have actually defaulted (Historical). | `Actual Default Rate = DIVIDE(CALCULATE(COUNT(Loans[loan_id]), Loans[loan_status]=1), [Total Loans])` |
-| **Predicted Default Rate** | Mean probability of default across the portfolio. | `Predicted PD = AVERAGE(LoanPredictions[probability_default])` |
-| **High Risk Loans** | Count of loans with IsHighRisk = 1. | `High Risk Count = CALCULATE(COUNT(Loans[loan_id]), LoanPredictions[is_high_risk]=1)` |
-| **High Risk Exposure** | Sum of loan amounts for high-risk loans. | `High Risk Volume = CALCULATE(SUM(Loans[loan_amnt]), LoanPredictions[is_high_risk]=1)` |
-| **Portfolio Expected Loss** | Total expected loss based on model predictions. | `Total Expected Loss = SUM(LoanPredictions[expected_loss])` |
-| **EL Ratio** | Expected loss as a % of total funded volume. | `EL Ratio = DIVIDE([Total Expected Loss], [Total Funded])` |
-| **Avg PD by Risk Band** | Breakdown of probability per segment. | `Avg PD per Band = AVERAGE(LoanPredictions[probability_default])` |
-| **Approval Rate** | (Simulated) Rate of "Good" loans predicted. | `Approval Rate = DIVIDE(CALCULATE(COUNT(Loans[loan_id]), LoanPredictions[probability_default] < 0.5), [Total Loans])` |
-| **Model Precision** | (If actuals are known) | `Precision = ... (DAX mapping to Confusion Matrix)` |
+| Measure | DAX |
+| :--- | :--- |
+| Loans | `Loans = COUNTROWS(Risk)` |
+| Funded volume | `Funded = SUM(Risk[loan_amnt])` |
+| Average loan | `Avg Loan = AVERAGE(Risk[loan_amnt])` |
+| Observed default rate | `Observed DR = DIVIDE(CALCULATE(COUNTROWS(Risk), Risk[actual_default] = 1), [Loans])` |
+| Mean predicted PD | `Predicted PD = AVERAGE(Risk[probability_default])` |
+| High-risk loans | `High Risk Loans = CALCULATE(COUNTROWS(Risk), Risk[is_high_risk] = TRUE())` |
+| High-risk exposure | `High Risk Exposure = CALCULATE(SUM(Risk[loan_amnt]), Risk[is_high_risk] = TRUE())` |
+| Expected loss | `Expected Loss = SUM(Risk[expected_loss])` |
+| EL ratio | `EL Ratio = DIVIDE([Expected Loss], [Funded])` |
+| Approval rate at 10% PD cut-off | `Approval Rate = DIVIDE(CALCULATE(COUNTROWS(Risk), Risk[probability_default] < 0.10), [Loans])` |
 
-## 2. Dashboard Layout (3 Pages)
+`Observed DR` next to `Predicted PD` is the simplest calibration check on
+the dashboard: the two should be close for any slice of the portfolio.
 
-### Page 1: Executive Overview
-- **Large Tiles**: Total Funded, Predicted PD, Total Expected Loss.
-- **Donut Chart**: Risk Band Distribution (Low vs Medium vs High).
-- **Bar Chart**: Funding Volume vs Actual Default Rate by Loan Intent.
-- **Map/Slicer**: Filter by Home Ownership or Age Group.
+## Layout (3 pages)
 
-### Page 2: Risk Segmentation
-- **Scatter Plot**: Income vs Loan Amount (Color-coded by Probability of Default).
-- **Heatmap**: Loan Grade vs Age Group (Values: Avg PD).
-- **Line Chart**: Predicted vs Actual Default Rate by Credit History Length.
+**1. Portfolio overview:** cards for Funded, Predicted PD, Observed DR and
+Expected Loss; donut of risk bands; bar chart of funded volume and observed
+default rate by loan intent; slicers for home ownership and loan grade.
 
-### Page 3: Model & Stress Test
-- **Gauge**: Portfolio PD vs Target (e.g., Target 5%).
-- **Slicer (What-If Parameter)**: "Stress Factor" (range 1.0 to 2.0). 
-- **Visual**: "Stress-Adjusted Expected Loss".
+**2. Risk segmentation:** scatter of income against loan amount coloured by
+PD; matrix of loan grade by risk band (average PD); predicted against observed
+default rate by scorecard score band.
 
-## 3. Stress Test DAX (Parameter-Based)
+**3. Stress view:** a what-if parameter scales PD and recalculates expected loss.
 
-Create a Parameter in Power BI called `StressFactor` (Numerical).
+## Stress measure
+
+Create a numeric what-if parameter called `Stress Factor` (1.0 to 2.0, step 0.1).
+PD is scaled loan by loan and capped at 100%:
 
 ```dax
-Stress Adjusted PD = 
-VAR BasePD = AVERAGE(LoanPredictions[probability_default])
-VAR AdjustedPD = BasePD * 'Stress Parameter'[Stress Parameter Value]
-RETURN
-IF(AdjustedPD > 1, 1, AdjustedPD)
-
-Stress Adjusted EL = 
+Stressed EL =
 SUMX(
-    LoanPredictions,
-    [Stress Adjusted PD] * LoanPredictions[loan_amnt] * 0.5
+    Risk,
+    MIN(Risk[probability_default] * 'Stress Factor'[Stress Factor Value], 1)
+        * Risk[lgd_assumption]
+        * Risk[loan_amnt]
 )
 ```
 
-> [!IMPORTANT]
-> Use the **Value** of the stress parameter to dynamically scale your `expected_loss` visual. This allows risk managers to see how a "20% increase in default probability" affects the bottom line.
+This is a simple sensitivity, not a macroeconomic stress test: it assumes
+every borrower's PD rises by the same multiple and that LGD does not change.
